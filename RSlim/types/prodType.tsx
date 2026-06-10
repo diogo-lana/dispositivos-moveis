@@ -4,4 +4,6 @@ export type prodType = {
   estoque: number
   preco?: number
   categoria?: string
+  imagem?: string
 }
+

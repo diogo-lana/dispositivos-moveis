@@ -4,16 +4,21 @@ import { prodType } from '../types/prodType'
 import { useProdutos } from '../context/produtoContext'
 import { useRouter } from 'expo-router'
 
+
 const CATEGORIAS = ['Cintas', 'Modeladores', 'Acessórios', 'Outros']
+
 
 export default function CadastroProduto() {
   const router = useRouter()
   const { adicionarProduto } = useProdutos()
 
+
   const [nome, setNome] = useState('')
   const [estoque, setEstoque] = useState('')
   const [preco, setPreco] = useState('')
   const [categoria, setCategoria] = useState('')
+  const [imagem, setImagem]=useState('')
+
 
   function handleSalvar() {
     if (!nome.trim() || !estoque.trim()) {
@@ -21,11 +26,13 @@ export default function CadastroProduto() {
       return
     }
 
+
     const estoqueNumber = Number(estoque)
     if (isNaN(estoqueNumber) || estoqueNumber < 0) {
       Alert.alert('Erro', 'Estoque deve ser um número válido e positivo.')
       return
     }
+
 
     const precoNumber = preco ? Number(preco.replace(',', '.')) : undefined
     if (preco && isNaN(precoNumber!)) {
@@ -33,13 +40,16 @@ export default function CadastroProduto() {
       return
     }
 
+
     const novoProduto: prodType = {
       id: Date.now().toString(),
       nome: nome.trim(),
       estoque: estoqueNumber,
       preco: precoNumber,
       categoria: categoria || undefined,
+      imagem: imagem || undefined,
     }
+
 
     adicionarProduto(novoProduto)
     Alert.alert('✅ Sucesso', 'Produto cadastrado com sucesso!', [
@@ -47,8 +57,10 @@ export default function CadastroProduto() {
     ])
   }
 
+
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+
 
       <View style={styles.headerRow}>
         <TouchableOpacity
@@ -60,10 +72,13 @@ export default function CadastroProduto() {
         </TouchableOpacity>
       </View>
 
+
       <Text style={styles.titulo}>Novo Produto</Text>
       <Text style={styles.subtitulo}>Preencha as informações do produto</Text>
 
+
       <View style={styles.card}>
+
 
         <Text style={styles.label}>Nome do produto *</Text>
         <TextInput
@@ -73,6 +88,7 @@ export default function CadastroProduto() {
           value={nome}
           onChangeText={setNome}
         />
+
 
         <Text style={styles.label}>Quantidade em estoque *</Text>
         <TextInput
@@ -84,6 +100,7 @@ export default function CadastroProduto() {
           keyboardType="numeric"
         />
 
+
         <Text style={styles.label}>Preço (R$)</Text>
         <TextInput
           placeholder="Ex: 99,90"
@@ -93,6 +110,7 @@ export default function CadastroProduto() {
           onChangeText={setPreco}
           keyboardType="decimal-pad"
         />
+
 
         <Text style={styles.label}>Categoria</Text>
         <View style={styles.categoriaRow}>
@@ -108,16 +126,28 @@ export default function CadastroProduto() {
             </TouchableOpacity>
           ))}
         </View>
+        <Text style={styles.label}>Imagem (URL)</Text>
+<TextInput
+  placeholder="Cole a URL da imagem"
+  placeholderTextColor="#AAAAAA"
+  style={styles.input}
+  value={imagem}
+  onChangeText={setImagem}
+/>
+
 
       </View>
+
 
       <TouchableOpacity style={styles.botaoSalvar} onPress={handleSalvar} activeOpacity={0.85}>
         <Text style={styles.botaoSalvarTexto}>Salvar Produto</Text>
       </TouchableOpacity>
 
+
     </ScrollView>
   )
 }
+
 
 const styles = StyleSheet.create({
   scroll: {
@@ -209,6 +239,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
+
+
   botaoSalvar: {
     backgroundColor: '#D9002B',
     borderRadius: 14,

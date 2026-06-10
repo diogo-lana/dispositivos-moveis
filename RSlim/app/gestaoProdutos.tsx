@@ -6,6 +6,7 @@ import {
 import { useProdutos } from '../context/produtoContext'
 import { prodType } from '../types/prodType'
 import { useRouter } from 'expo-router'
+import { Image } from 'react-native'
 
 const CATEGORIAS = ['Cintas', 'Modeladores', 'Acessórios', 'Outros']
 
@@ -102,8 +103,15 @@ export default function GerenciarProdutos() {
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={styles.cardTop}>
-              <View style={styles.info}>
-                <Text style={styles.nome}>{item.nome}</Text>
+              {item.imagem && (
+    <Image
+      source={{ uri: item.imagem }}
+      style={styles.imagemProduto}
+    />
+  )}
+
+  <View style={styles.info}>
+    <Text style={styles.nome}>{item.nome}</Text>
                 <View style={styles.tagRow}>
                   {item.categoria && (
                     <View style={styles.tag}>
@@ -374,4 +382,12 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   btnSalvarTexto: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 15 },
+
+  imagemProduto: {
+  width: 80,
+  height: 80,
+  borderRadius: 10,
+  marginRight: 12,
+
+},
 })
