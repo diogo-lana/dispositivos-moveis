@@ -1,17 +1,13 @@
 import React from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useProdutos } from '../context/produtoContext'
 
 export default function Home() {
-  // CORRIGIDO: useRouter dentro do componente
   const router = useRouter()
-  const { produtos } = useProdutos()
+  const { produtos, carregando, erro, recarregar } = useProdutos()
 
-  // Dados dinâmicos do contexto
   const totalProdutos = produtos.length
-  const semEstoque = produtos.filter(p => p.estoque === 0).length
-  const baixoEstoque = produtos.filter(p => p.estoque > 0 && p.estoque <= 3).length
 
   const acoes = [
     { label: 'Gerenciar Produtos', emoji: '📦', rota: '/gestaoProdutos' },
@@ -37,20 +33,27 @@ export default function Home() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.kpiRow}>
-        <View style={styles.kpiCard}>
-          <Text style={styles.kpiNumero}>{totalProdutos}</Text>
-          <Text style={styles.kpiLabel}>Produtos</Text>
+      {/* KPIs */}
+      {carregando ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color="#D9002B" size="large" />
+          <Text style={styles.loadingTexto}>Carregando dados...</Text>
         </View>
-        <View style={[styles.kpiCard, semEstoque > 0 && styles.kpiCardAlerta]}>
-          <Text style={[styles.kpiNumero, semEstoque > 0 && styles.kpiNumeroAlerta]}>{semEstoque}</Text>
-          <Text style={styles.kpiLabel}>Sem estoque</Text>
+      ) : erro ? (
+        <View style={styles.erroBox}>
+          <Text style={styles.erroTexto}>{erro}</Text>
+          <TouchableOpacity style={styles.btnRecarregar} onPress={recarregar}>
+            <Text style={styles.btnRecarregarTexto}>Tentar novamente</Text>
+          </TouchableOpacity>
         </View>
-        <View style={[styles.kpiCard, baixoEstoque > 0 && styles.kpiCardAviso]}>
-          <Text style={[styles.kpiNumero, baixoEstoque > 0 && styles.kpiNumeroAviso]}>{baixoEstoque}</Text>
-          <Text style={styles.kpiLabel}>Baixo estoque</Text>
+      ) : (
+        <View style={styles.kpiRow}>
+          <View style={styles.kpiCard}>
+            <Text style={styles.kpiNumero}>{totalProdutos}</Text>
+            <Text style={styles.kpiLabel}>Produtos</Text>
+          </View>
         </View>
-      </View>
+      )}
 
       <Text style={styles.sectionTitle}>Acesso Rápido</Text>
 
@@ -72,14 +75,8 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: '#F7F7F7',
-  },
-  container: {
-    padding: 20,
-    paddingBottom: 40,
-  },
+  scroll: { flex: 1, backgroundColor: '#F7F7F7' },
+  container: { padding: 20, paddingBottom: 40 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -87,106 +84,53 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     marginTop: 10,
   },
-  titulo: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-  },
-  subtitulo: {
-    fontSize: 13,
-    color: '#888',
-    marginTop: 2,
-  },
+  titulo: { fontSize: 24, fontWeight: 'bold', color: '#1A1A1A' },
+  subtitulo: { fontSize: 13, color: '#888', marginTop: 2 },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 44, height: 44, borderRadius: 22,
     backgroundColor: '#D9002B',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center', alignItems: 'center',
   },
-  avatarText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 18,
-  },
-  kpiRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 28,
-    gap: 8,
-  },
-  kpiCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 14,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  kpiCardAlerta: {
+  avatarText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 },
+
+  loadingBox: { alignItems: 'center', paddingVertical: 32, gap: 12 },
+  loadingTexto: { color: '#888', fontSize: 14 },
+
+  erroBox: {
     backgroundColor: '#FFF0F2',
-    borderWidth: 1,
-    borderColor: '#FFCCD3',
-  },
-  kpiCardAviso: {
-    backgroundColor: '#FFFBF0',
-    borderWidth: 1,
-    borderColor: '#FFE7A0',
-  },
-  kpiNumero: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-  },
-  kpiNumeroAlerta: {
-    color: '#D9002B',
-  },
-  kpiNumeroAviso: {
-    color: '#E68A00',
-  },
-  kpiLabel: {
-    fontSize: 11,
-    color: '#888',
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-    marginBottom: 12,
-  },
-  botao: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 14,
-    padding: 18,
-    marginBottom: 10,
-    flexDirection: 'row',
+    padding: 20,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 3,
+    marginBottom: 20,
+    gap: 12,
   },
-  botaoEmoji: {
-    fontSize: 22,
-    marginRight: 14,
+  erroTexto: { color: '#D9002B', fontSize: 13, textAlign: 'center' },
+  btnRecarregar: {
+    backgroundColor: '#D9002B',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
   },
-  botaoTexto: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1A1A1A',
+  btnRecarregarTexto: { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
+
+  kpiRow: { flexDirection: 'row', marginBottom: 28, gap: 8 },
+  kpiCard: {
+    flex: 1, backgroundColor: '#FFFFFF', borderRadius: 14,
+    padding: 14, alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
   },
-  seta: {
-    fontSize: 22,
-    color: '#CCCCCC',
-    fontWeight: 'bold',
+  kpiNumero: { fontSize: 26, fontWeight: 'bold', color: '#1A1A1A' },
+  kpiLabel: { fontSize: 11, color: '#888', marginTop: 2, textAlign: 'center' },
+
+  sectionTitle: { fontSize: 17, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 12 },
+  botao: {
+    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 18,
+    marginBottom: 10, flexDirection: 'row', alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
   },
+  botaoEmoji: { fontSize: 22, marginRight: 14 },
+  botaoTexto: { flex: 1, fontSize: 15, fontWeight: '600', color: '#1A1A1A' },
+  seta: { fontSize: 22, color: '#CCCCCC', fontWeight: 'bold' },
 })

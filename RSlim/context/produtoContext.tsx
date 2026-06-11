@@ -1,80 +1,78 @@
-import { createContext, useContext, useState, ReactNode } from 'react'
-import { prodType } from '../types/prodType'
-import { useEffect } from 'react'
-import { db } from '../src/database/database'
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import api from '../src/services/api'
+import { prodType, prodCreateType } from '../types/prodType'
 
 type ProdutoContextType = {
   produtos: prodType[]
-  adicionarProduto: (produto: prodType) => void
-  removerProduto: (id: string) => void
-  editarProduto: (produto: prodType) => void
+  categorias: { cd_categoria: number; nm_categoria: string }[]
+  fabricantes: { cd_fabricante: number; nm_fabricante: string }[]
+  carregando: boolean
+  erro: string | null
+  adicionarProduto: (produto: prodCreateType) => Promise<void>
+  removerProduto: (id: number) => Promise<void>
+  editarProduto: (id: number, produto: prodCreateType) => Promise<void>
+  recarregar: () => Promise<void>
 }
 
 const ProdutoContext = createContext({} as ProdutoContextType)
 
-type Props = {
-  children: ReactNode
-}
+export function ProdutoProvider({ children }: { children: ReactNode }) {
+  const [produtos, setProdutos] = useState<prodType[]>([])
+  const [categorias, setCategorias] = useState<{ cd_categoria: number; nm_categoria: string }[]>([])
+  const [fabricantes, setFabricantes] = useState<{ cd_fabricante: number; nm_fabricante: string }[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [erro, setErro] = useState<string | null>(null)
 
-export function ProdutoProvider({ children }: Props) {
-  console.log('ProdutoProvider carregou')
-
-  const [produtos, setProdutos] = useState<prodType[]>([
-    { id: '1', nome: 'Cinta Modeladora RSLIM', estoque: 12, preco: 89.90, categoria: 'Cintas', imagem: 'https://www.rslim.com.br/cdn/shop/files/cinta_meia_coxa_pos_operatorio_MP2043.jpg?v=1737741686&width=1946'},
-    { id: '2', nome: 'Cinta Abdominal Alta Compressão', estoque: 8, preco: 129.90, categoria: 'Cintas', imagem:'https://www.rslim.com.br/cdn/shop/files/DSC09705.jpg?v=1762268124&width=1946'},
-    { id: '3', nome: 'Modelador Corporal Feminino', estoque: 5, preco: 99.90, categoria: 'Modeladores', imagem:'https://www.rslim.com.br/cdn/shop/files/SLIM13450.jpg?v=1737564356&width=1946' },
-    { id: '4', nome: 'Cinta Pós-Cirúrgica', estoque: 3, preco: 149.90, categoria: 'Cintas', imagem:'https://www.rslim.com.br/cdn/shop/files/DSC00140.jpg?v=1759238264&width=1946'},
-    { id: '5', nome: 'Short Modelador', estoque: 0, preco: 79.90, categoria: 'Modeladores',imagem:' https://www.rslim.com.br/cdn/shop/files/SLIM13643.jpg?v=1737660011&width=1946' },
-    { id: '6', nome: 'Colete Modelador Masculino', estoque: 6, preco: 109.90, categoria: 'Modeladores', imagem:'https://www.rslim.com.br/cdn/shop/files/colete_pos_operatorio_masculino_MT4021.jpg?v=1737740387&width=1946' },
-  ])
-
-  useEffect(() => {
-  db.execSync(`
-    CREATE TABLE IF NOT EXISTS produtos (
-      id TEXT PRIMARY KEY,
-      nome TEXT NOT NULL,
-      estoque INTEGER NOT NULL,
-      preco REAL,
-      categoria TEXT,
-      imagem TEXT
-    );
-  `)
-
-  console.log('Banco criado com sucesso!')
-}, [])
-
-  function adicionarProduto(produto: prodType) {
-
-  db.runSync(
-    `INSERT INTO produtos
-    (id, nome, estoque, preco, categoria, imagem)
-    VALUES (?, ?, ?, ?, ?, ?)`,
-    [
-      produto.id,
-      produto.nome,
-      produto.estoque,
-      produto.preco ?? null,
-      produto.categoria ?? null,
-      produto.imagem ?? null
-    ]
-  )
-  console.log('Produto salvo no SQLite')
-
-  setProdutos((prev) => [...prev, produto])
-}
-
-  function removerProduto(id: string) {
-    setProdutos((prev) => prev.filter(p => p.id !== id))
+  async function carregarDados() {
+    setCarregando(true)
+    setErro(null)
+    try {
+      const [resProdutos, resCategorias, resFabricantes] = await Promise.all([
+        api.get('/produtos'),
+        api.get('/categorias'),
+        api.get('/fabricantes'),
+      ])
+      setProdutos(resProdutos.data)
+      setCategorias(resCategorias.data)
+      setFabricantes(resFabricantes.data)
+    } catch (e: any) {
+      setErro(`Não foi possível carregar os dados.\n${e?.message ?? ''}`)
+    } finally {
+      setCarregando(false)
+    }
   }
 
-  function editarProduto(produtoAtualizado: prodType) {
-    setProdutos((prev) =>
-      prev.map(p => p.id === produtoAtualizado.id ? produtoAtualizado : p)
-    )
+  useEffect(() => {
+    carregarDados()
+  }, [])
+
+  async function adicionarProduto(produto: prodCreateType) {
+    const res = await api.post('/produtos', produto)
+    setProdutos(prev => [...prev, res.data])
+  }
+
+  async function removerProduto(id: number) {
+    await api.delete(`/produtos/${id}`)
+    setProdutos(prev => prev.filter(p => p.cd_produto !== id))
+  }
+
+  async function editarProduto(id: number, produto: prodCreateType) {
+    const res = await api.put(`/produtos/${id}`, produto)
+    setProdutos(prev => prev.map(p => p.cd_produto === id ? res.data : p))
   }
 
   return (
-    <ProdutoContext.Provider value={{ produtos, adicionarProduto, removerProduto, editarProduto }}>
+    <ProdutoContext.Provider value={{
+      produtos,
+      categorias,
+      fabricantes,
+      carregando,
+      erro,
+      adicionarProduto,
+      removerProduto,
+      editarProduto,
+      recarregar: carregarDados,
+    }}>
       {children}
     </ProdutoContext.Provider>
   )
@@ -83,4 +81,3 @@ export function ProdutoProvider({ children }: Props) {
 export function useProdutos() {
   return useContext(ProdutoContext)
 }
-

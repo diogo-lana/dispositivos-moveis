@@ -1,25 +1,59 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'expo-router'
-import { useProdutos } from '../context/produtoContext'
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native'
+import api from '../src/services/api'
+
+type DashboardData = {
+  total_pedidos: number
+  total_produtos: number
+  total_vendedores: number
+  total_categorias: number
+  total_fabricantes: number
+  receita_total: number
+  ticket_medio: number
+}
+
+type Produto = {
+  cd_produto: number
+  desc_produto: string
+  cd_categoria: number
+  cd_fabricante: number
+}
 
 export default function Dashboard() {
   const router = useRouter()
-  const { produtos } = useProdutos()
+  const [dados, setDados] = useState<DashboardData | null>(null)
+  const [produtos, setProdutos] = useState<Produto[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [erro, setErro] = useState<string | null>(null)
 
-  const totalProdutos = produtos.length
-  const semEstoque = produtos.filter(p => p.estoque === 0).length
-  const disponiveis = produtos.filter(p => p.estoque > 0).length
-  const baixoEstoque = produtos.filter(p => p.estoque > 0 && p.estoque <= 3).length
-  const totalUnidades = produtos.reduce((acc, p) => acc + p.estoque, 0)
+  useEffect(() => {
+    async function carregar() {
+      try {
+        const [resDash, resProd] = await Promise.all([
+          api.get('/dashboard'),
+          api.get('/produtos'),
+        ])
+        setDados(resDash.data)
+        setProdutos(resProd.data)
+      } catch (e: any) {
+        setErro('Erro ao carregar dashboard. Verifique a conexão com a API.')
+        console.error(e)
+      } finally {
+        setCarregando(false)
+      }
+    }
+    carregar()
+  }, [])
 
-  const kpis = [
-    { label: 'Total de Produtos', valor: totalProdutos, cor: '#1A1A1A', bg: '#F5F5F5' },
-    { label: 'Disponíveis', valor: disponiveis, cor: '#28a745', bg: '#F0FFF4' },
-    { label: 'Sem Estoque', valor: semEstoque, cor: '#D9002B', bg: '#FFF0F2' },
-    { label: 'Baixo Estoque', valor: baixoEstoque, cor: '#E68A00', bg: '#FFFBF0' },
-    { label: 'Total Unidades', valor: totalUnidades, cor: '#0066CC', bg: '#F0F6FF' },
-  ]
+  const kpis = dados ? [
+    { label: 'Total de Produtos', valor: dados.total_produtos, cor: '#1A1A1A', bg: '#F5F5F5' },
+    { label: 'Categorias', valor: dados.total_categorias, cor: '#0066CC', bg: '#F0F6FF' },
+    { label: 'Fabricantes', valor: dados.total_fabricantes, cor: '#6A0DAD', bg: '#F8F0FF' },
+    { label: 'Vendedores', valor: dados.total_vendedores, cor: '#28a745', bg: '#F0FFF4' },
+    { label: 'Total de Pedidos', valor: dados.total_pedidos, cor: '#E68A00', bg: '#FFFBF0' },
+    { label: 'Receita Total', valor: `R$ ${dados.receita_total.toFixed(2).replace('.', ',')}`, cor: '#D9002B', bg: '#FFF0F2' },
+  ] : []
 
   return (
     <View style={styles.container}>
@@ -35,134 +69,78 @@ export default function Dashboard() {
       </View>
 
       <Text style={styles.titulo}>Dashboard</Text>
-      <Text style={styles.subtitulo}>Visão geral do estoque</Text>
+      <Text style={styles.subtitulo}>Dados em tempo real da API</Text>
 
-      <View style={styles.kpiGrid}>
-        {kpis.map((kpi) => (
-          <View key={kpi.label} style={[styles.kpiCard, { backgroundColor: kpi.bg }]}>
-            <Text style={[styles.kpiNumero, { color: kpi.cor }]}>{kpi.valor}</Text>
-            <Text style={styles.kpiLabel}>{kpi.label}</Text>
-          </View>
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>Lista de Produtos</Text>
-
-      <FlatList
-        data={produtos}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <View style={styles.item}>
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemNome}>{item.nome}</Text>
-              <Text style={styles.itemEstoque}>Estoque: {item.estoque} un.</Text>
-            </View>
-            <View style={styles.itemDireita}>
-              {item.preco && (
-                <Text style={styles.itemPreco}>
-                  R$ {item.preco.toFixed(2).replace('.', ',')}
-                </Text>
-              )}
-              <View style={[
-                styles.badge,
-                item.estoque === 0 ? styles.badgeSemEstoque :
-                item.estoque <= 3 ? styles.badgeBaixo : styles.badgeOk
-              ]}>
-                <Text style={[
-                  styles.badgeTexto,
-                  item.estoque === 0 ? styles.badgeTextoAlerta :
-                  item.estoque <= 3 ? styles.badgeTextoAviso : styles.badgeTextoOk
-                ]}>
-                  {item.estoque === 0 ? 'Sem estoque' : item.estoque <= 3 ? 'Baixo' : 'OK'}
-                </Text>
+      {carregando ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color="#D9002B" size="large" />
+          <Text style={styles.loadingTexto}>Carregando...</Text>
+        </View>
+      ) : erro ? (
+        <View style={styles.erroBox}>
+          <Text style={styles.erroTexto}>{erro}</Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.kpiGrid}>
+            {kpis.map((kpi) => (
+              <View key={kpi.label} style={[styles.kpiCard, { backgroundColor: kpi.bg }]}>
+                <Text style={[styles.kpiNumero, { color: kpi.cor }]}>{kpi.valor}</Text>
+                <Text style={styles.kpiLabel}>{kpi.label}</Text>
               </View>
-            </View>
+            ))}
           </View>
-        )}
-      />
+
+          <Text style={styles.sectionTitle}>Produtos Cadastrados</Text>
+
+          <FlatList
+            data={produtos}
+            keyExtractor={(item) => item.cd_produto.toString()}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <View style={styles.item}>
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemNome}>{item.desc_produto}</Text>
+                  <Text style={styles.itemSub}>ID: {item.cd_produto} · Cat: {item.cd_categoria}</Text>
+                </View>
+              </View>
+            )}
+          />
+        </>
+      )}
 
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F7F7F7',
-    padding: 20,
-  },
+  container: { flex: 1, backgroundColor: '#F7F7F7', padding: 20 },
   headerRow: { marginBottom: 4, marginTop: 6 },
-  backBtn: {
-    alignSelf: 'flex-start',
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    marginLeft: -4,
-  },
+  backBtn: { alignSelf: 'flex-start', paddingVertical: 12, paddingHorizontal: 4, marginLeft: -4 },
   backText: { color: '#D9002B', fontSize: 18, fontWeight: '600' },
   titulo: { fontSize: 26, fontWeight: 'bold', color: '#1A1A1A', marginTop: 4 },
   subtitulo: { fontSize: 13, color: '#888', marginBottom: 20, marginTop: 2 },
 
-  kpiGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 24,
-  },
-  kpiCard: {
-    width: '47%',
-    borderRadius: 14,
-    padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  kpiNumero: {
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
-  kpiLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-    textAlign: 'center',
-  },
+  loadingBox: { alignItems: 'center', paddingVertical: 40, gap: 12 },
+  loadingTexto: { color: '#888', fontSize: 14 },
+  erroBox: { backgroundColor: '#FFF0F2', borderRadius: 14, padding: 20, alignItems: 'center' },
+  erroTexto: { color: '#D9002B', fontSize: 13, textAlign: 'center' },
 
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-    marginBottom: 10,
+  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
+  kpiCard: {
+    width: '47%', borderRadius: 14, padding: 16, alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
+  kpiNumero: { fontSize: 24, fontWeight: 'bold' },
+  kpiLabel: { fontSize: 12, color: '#666', marginTop: 4, textAlign: 'center' },
+
+  sectionTitle: { fontSize: 17, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 10 },
   item: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
-    marginBottom: 8,
+    backgroundColor: '#FFFFFF', padding: 14, borderRadius: 12,
+    borderWidth: 1, borderColor: '#F0F0F0', marginBottom: 8,
   },
   itemInfo: { flex: 1 },
   itemNome: { fontSize: 14, fontWeight: 'bold', color: '#1A1A1A' },
-  itemEstoque: { fontSize: 12, color: '#888', marginTop: 2 },
-  itemDireita: { alignItems: 'flex-end', gap: 4 },
-  itemPreco: { fontSize: 13, fontWeight: 'bold', color: '#D9002B' },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  badgeSemEstoque: { backgroundColor: '#FFF0F2' },
-  badgeBaixo: { backgroundColor: '#FFFBF0' },
-  badgeOk: { backgroundColor: '#F0FFF4' },
-  badgeTexto: { fontSize: 11, fontWeight: 'bold' },
-  badgeTextoAlerta: { color: '#D9002B' },
-  badgeTextoAviso: { color: '#E68A00' },
-  badgeTextoOk: { color: '#28a745' },
+  itemSub: { fontSize: 12, color: '#888', marginTop: 2 },
 })

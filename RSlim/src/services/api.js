@@ -1,7 +1,10 @@
 import axios from "axios";
 
+const BASE_URL = "http://192.168.100.5:8000";
+
 const api = axios.create({
-  baseURL: "https://6a285d334e1e783349a5737b.mockapi.io/api/rslim",
+  baseURL: BASE_URL,
+  timeout: 10000,
 });
 
 export default api;
